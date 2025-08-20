@@ -47,7 +47,7 @@ export default function App() {
       await SecureStore.setItemAsync("token", res.token);
       // TODO: Navigate to your app's main screen
       Alert.alert("Success", "Logged in successfully!");
-      router.replace("/chat/ChatScreen"); // keep simple for now; change later to /(tabs)/home
+      router.replace("/tabs/homescreen"); // keep simple for now; change later to /(tabs)/home
     } catch (e: any) {
       console.log(e);
       setErr(e?.message || "Login failed. Is the server running?");
