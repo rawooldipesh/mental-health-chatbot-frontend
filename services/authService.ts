@@ -2,11 +2,23 @@
 import { request } from "./api";
 
 type LoginBody = { email: string; password: string };
-type RegisterBody = { name?: string; email: string; password: string };
+type RegisterBody = { name: string; email: string; password: string };
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+}
 
 export interface LoginResponse {
+  success: boolean;
   token: string;
-  user?: { id: string; email: string };
+  user: User;
+}
+
+export interface RegisterResponse {
+  success: boolean;
+  user: User;
 }
 
 export async function login(payload: LoginBody) {
@@ -14,5 +26,5 @@ export async function login(payload: LoginBody) {
 }
 
 export async function register(payload: RegisterBody) {
-  return request<{ id: string; email: string }>("/auth/register", "POST", payload);
+  return request<RegisterResponse>("/auth/register", "POST", payload);
 }

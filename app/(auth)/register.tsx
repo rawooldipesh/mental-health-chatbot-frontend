@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as SecureStore from "expo-secure-store";
 import { register as registerApi } from "../../services/authService";
 
 const { width } = Dimensions.get("window");
@@ -31,7 +32,7 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setErr(null);
 
-    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
+    if (!email.trim() || !password.trim() || !confirmPassword.trim() || !name.trim()) {
       setErr("Please fill all fields.");
       return;
     }
@@ -51,9 +52,18 @@ export default function RegisterScreen() {
 
     try {
       setLoading(true);
-      await registerApi({ name,email, password });
-      Alert.alert("Success", "Account created! Please sign in.");
-      router.replace("/(auth)/login");
+      const res = await registerApi({ name, email, password });
+      // backend should return { token, user }
+
+      if (res.token) {
+        await SecureStore.setItemAsync("token", res.token);
+      }
+      if (res.user) {
+        await SecureStore.setItemAsync("user", JSON.stringify(res.user));
+      }
+
+      Alert.alert("Success", `Welcome ${res.user?.email || ""}!`);
+      router.replace("/tabs/homescreen");
     } catch (e: any) {
       console.log(e);
       setErr(e?.message || "Registration failed. Please try again.");
@@ -84,113 +94,114 @@ export default function RegisterScreen() {
 
         {/* Card */}
         <View style={styles.centerWrapper}>
-        <View style={styles.card}>
-          {/* Icon */}
-          <View style={styles.iconWrapper}>
-            <Ionicons name="heart-outline" size={30} color="white" />
-          </View>
+          <View style={styles.card}>
+            {/* Icon */}
+            <View style={styles.iconWrapper}>
+              <Ionicons name="heart-outline" size={30} color="white" />
+            </View>
 
-          {/* Title */}
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>
-            Join us for personalized mental health support
-          </Text>
-          {/* Name */}
-<Text style={styles.label}>Name</Text>
-<TextInput
-  style={styles.input}
-  placeholder="Enter your name"
-  placeholderTextColor="#aaa"
-  value={name}
-  onChangeText={setName}
-  accessibilityLabel="Name"
-/>
-         
-          {/* Email */}
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your email"
-            placeholderTextColor="#aaa"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
-            accessibilityLabel="Email"
-          />
-
-          {/* Password */}
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.passwordWrapper}>
-            <TextInput
-              style={styles.passwordInput}
-              placeholder="Enter your password"
-              placeholderTextColor="#aaa"
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
-              accessibilityLabel="Password"
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeIcon}
-              accessibilityRole="button"
-              accessibilityLabel={showPassword ? "Hide password" : "Show password"}
-            >
-              <Ionicons
-                name={showPassword ? "eye-off" : "eye"}
-                size={20}
-                color="#666"
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* Confirm Password */}
-          <Text style={styles.label}>Confirm Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm your password"
-            placeholderTextColor="#aaa"
-            secureTextEntry={true}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            accessibilityLabel="Confirm Password"
-          />
-
-          {/* Error */}
-          {err ? <Text style={styles.errorText}>{err}</Text> : null}
-
-          {/* Create Account Button */}
-          <TouchableOpacity
-            style={styles.signInBtn}
-            onPress={handleRegister}
-            disabled={loading}
-            accessibilityRole="button"
-            accessibilityLabel="Create Account"
-          >
-            <LinearGradient
-              colors={["#3b82f6", "#34d399"]}
-              style={[styles.gradientBtn, loading && { opacity: 0.7 }]}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.signInText}>Create Account</Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* Footer */}
-          <Text style={styles.footerText}>
-            Already have an account?{" "}
-            <Text
-              style={styles.signupText}
-              onPress={() => router.push("/(auth)/login")}
-            >
-              Sign in
+            {/* Title */}
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>
+              Join us for personalized mental health support
             </Text>
-          </Text>
-        </View>
+
+            {/* Name */}
+            <Text style={styles.label}>Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your name"
+              placeholderTextColor="#aaa"
+              value={name}
+              onChangeText={setName}
+              accessibilityLabel="Name"
+            />
+
+            {/* Email */}
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your email"
+              placeholderTextColor="#aaa"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+              accessibilityLabel="Email"
+            />
+
+            {/* Password */}
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.passwordWrapper}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Enter your password"
+                placeholderTextColor="#aaa"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                accessibilityLabel="Password"
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={20}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Confirm Password */}
+            <Text style={styles.label}>Confirm Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm your password"
+              placeholderTextColor="#aaa"
+              secureTextEntry={true}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              accessibilityLabel="Confirm Password"
+            />
+
+            {/* Error */}
+            {err ? <Text style={styles.errorText}>{err}</Text> : null}
+
+            {/* Create Account Button */}
+            <TouchableOpacity
+              style={styles.signInBtn}
+              onPress={handleRegister}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Create Account"
+            >
+              <LinearGradient
+                colors={["#3b82f6", "#34d399"]}
+                style={[styles.gradientBtn, loading && { opacity: 0.7 }]}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.signInText}>Create Account</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Footer */}
+            <Text style={styles.footerText}>
+              Already have an account?{" "}
+              <Text
+                style={styles.signupText}
+                onPress={() => router.push("/(auth)/login")}
+              >
+                Sign in
+              </Text>
+            </Text>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

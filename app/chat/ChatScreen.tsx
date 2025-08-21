@@ -1,4 +1,3 @@
-// frontend/screens/ChatScreen.tsx
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
@@ -9,27 +8,95 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Pressable,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { request } from "../../services/api";
 import { Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  startSession,
+  endSession,
+  sendMessage as sendChatMessage,
+  fetchHistory,
+  listSessions,
+  Message,
+  Session,
+} from "../../services/chatService";
 
 export default function ChatScreen() {
-  const [messages, setMessages] = useState<{ sender: string; text: string }[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
+  // Load previous sessions -> resume latest or create new
+  useEffect(() => {
+    let activeSessionId: string | null = null;
 
-    setMessages((prev) => [...prev, { sender: "user", text: input }]);
-    const userMsg = input;
+    (async () => {
+      try {
+        const sess = await listSessions(); // existing sessions for this user
+        setSessions(sess);
+
+        if (sess.length > 0) {
+          // pick the latest by createdAt/startedAt
+          const latest = [...sess].sort(
+            (a, b) =>
+              new Date(b.createdAt || b.startedAt).getTime() -
+              new Date(a.createdAt || a.startedAt).getTime()
+          )[0];
+
+          setSessionId(latest._id);
+          activeSessionId = latest._id;
+
+          const history = await fetchHistory(latest._id);
+          setMessages(history || []);
+        } else {
+          const { sessionId } = await startSession();
+          setSessionId(sessionId);
+          activeSessionId = sessionId;
+          setMessages([]); // nothing yet
+        }
+      } catch (err) {
+        console.error("Failed to initialize chat:", err);
+      }
+    })();
+
+    // end the active session on unmount (optional)
+    return () => {
+      if (activeSessionId) {
+        endSession(activeSessionId).catch((e) =>
+          console.error("End session failed:", e)
+        );
+      }
+    };
+  }, []);
+
+  // Send user message
+  const handleSend = async () => {
+    if (!input.trim() || !sessionId) return;
+
+    const userMsg: Message = {
+      sender: "user",
+      text: input,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+
+    const userInput = input;
     setInput("");
 
     try {
-      const res = await request<{ reply: string }>("/chat/send", "POST", { message: userMsg });
-      setMessages((prev) => [...prev, { sender: "bot", text: res.reply }]);
+      const res = await sendChatMessage(sessionId, userInput);
+      const botMsg: Message = {
+        sender: "bot",
+        text: res.reply,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, botMsg]);
     } catch (e: any) {
       setMessages((prev) => [
         ...prev,
@@ -38,12 +105,39 @@ export default function ChatScreen() {
     }
   };
 
+  // New chat (start a fresh session)
+  const handleNewChat = async () => {
+    try {
+      const { sessionId: newId } = await startSession();
+      setSessionId(newId);
+      setMessages([]);
+      // refresh sessions list
+      const sess = await listSessions();
+      setSessions(sess);
+    } catch (e) {
+      console.error("Failed to start new chat:", e);
+    }
+  };
+
+  // Open a specific previous session
+  const openSession = async (id: string) => {
+    try {
+      setPickerOpen(false);
+      setSessionId(id);
+      const history = await fetchHistory(id);
+      setMessages(history || []);
+    } catch (e) {
+      console.error("Failed to load session history:", e);
+    }
+  };
+
+  // Auto-scroll on new message
   useEffect(() => {
     scrollViewRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
 
   return (
-    <LinearGradient colors={["#f9f9f9", "#e6f0ff"]} style={{ flex: 1 }}>
+    <LinearGradient colors={["#eaedf1ff", "#69aac4ff"]} style={{ flex: 1 }}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -51,10 +145,20 @@ export default function ChatScreen() {
       >
         <Stack.Screen options={{ headerShown: false }} />
 
-        {/* ✅ Custom Header */}
+        {/* Header */}
         <View style={styles.header}>
           <Ionicons name="chatbubbles-outline" size={26} color="#4f8cff" style={{ marginRight: 8 }} />
           <Text style={styles.headerTitle}>FEELFREE</Text>
+
+          {/* Right actions */}
+          <View style={{ position: "absolute", right: 12, flexDirection: "row" }}>
+            <TouchableOpacity onPress={() => setPickerOpen(true)} style={{ marginRight: 10 }}>
+              <Ionicons name="albums-outline" size={22} color="#4f8cff" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleNewChat}>
+              <Ionicons name="add-circle-outline" size={24} color="#4f8cff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Chat area */}
@@ -65,7 +169,7 @@ export default function ChatScreen() {
         >
           {messages.map((m, i) => (
             <View
-              key={i}
+              key={`${m.createdAt || i}-${i}`}
               style={[
                 styles.messageBubble,
                 m.sender === "user" ? styles.userBubble : styles.botBubble,
@@ -92,19 +196,49 @@ export default function ChatScreen() {
             placeholder="Type a message..."
             placeholderTextColor="#999"
           />
-          <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+          <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
             <Ionicons name="send" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
+
+        {/* Session picker modal */}
+        <Modal
+          transparent
+          visible={pickerOpen}
+          animationType="fade"
+          onRequestClose={() => setPickerOpen(false)}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setPickerOpen(false)}>
+            <View style={styles.modalSheet}>
+              <Text style={styles.modalTitle}>Your Sessions</Text>
+              {sessions.length === 0 ? (
+                <Text style={{ color: "#555", marginTop: 8 }}>No previous sessions.</Text>
+              ) : (
+                sessions.map((s) => (
+                  <TouchableOpacity
+                    key={s._id}
+                    style={styles.sessionItem}
+                    onPress={() => openSession(s._id)}
+                  >
+                    <Ionicons name="chatbox-ellipses-outline" size={18} color="#4f8cff" />
+                    <Text style={styles.sessionText}>
+                      {new Date(s.createdAt || s.startedAt).toLocaleString()}
+                      {s.endedAt ? "  (ended)" : ""}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          </Pressable>
+        </Modal>
       </KeyboardAvoidingView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, paddingTop: 60},
+  container: { flex: 1, padding: 10, paddingTop: 60 },
 
-  /* ✅ Header styling */
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -168,12 +302,39 @@ const styles = StyleSheet.create({
     fontSize: 15,
     paddingHorizontal: 12,
     color: "#333",
-
   },
   sendButton: {
     backgroundColor: "#4f8cff",
     padding: 10,
     borderRadius: 25,
     marginLeft: 6,
+  },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.25)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 10,
+  },
+  sessionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    gap: 8,
+  },
+  sessionText: {
+    marginLeft: 8,
+    color: "#333",
   },
 });

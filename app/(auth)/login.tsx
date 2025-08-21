@@ -28,34 +28,42 @@ export default function App() {
   const [err, setErr] = useState<string | null>(null);
 
   const handleLogin = async () => {
-    setErr(null);
+  setErr(null);
 
-    // Basic validation
-    if (!email.trim() || !password.trim()) {
-      setErr("Please enter email and password.");
-      return;
-    }
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    if (!emailOk) {
-      setErr("Please enter a valid email.");
-      return;
+  if (!email.trim() || !password.trim()) {
+    setErr("Please enter email and password.");
+    return;
+  }
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!emailOk) {
+    setErr("Please enter a valid email.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    const res = await loginApi({ email, password }); // { token, user }
+
+    // Save token + user securely
+    await SecureStore.setItemAsync("token", res.token);
+    if (res.user) {
+      await SecureStore.setItemAsync("user", JSON.stringify(res.user));
     }
 
-    try {
-      setLoading(true);
-      const res = await loginApi({ email, password }); // { token, user }
-      await SecureStore.setItemAsync("token", res.token);
-      // TODO: Navigate to your app's main screen
-      Alert.alert("Success", "Logged in successfully!");
-      router.replace("/tabs/homescreen"); // keep simple for now; change later to /(tabs)/home
-    } catch (e: any) {
-      console.log(e);
-      setErr(e?.message || "Login failed. Is the server running?");
-      Alert.alert("Login failed", e?.message || "Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    Alert.alert("Success", `Welcome back ${res.user?.name || ""}!`);
+
+    router.replace("/tabs/homescreen");
+
+  } catch (e: any) {
+    console.log("Login error:", e);
+    const msg = e?.response?.data?.message || e?.message || "Login failed. Please try again.";
+    setErr(msg);
+    Alert.alert("Login failed", msg);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <SafeAreaView style={styles.container}>
