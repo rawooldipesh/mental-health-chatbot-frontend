@@ -16,7 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Stack } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-
+import { KeyboardAvoidingView, Platform } from "react-native";
 type SosContact = {
   id: string;
   name: string;
@@ -117,9 +117,11 @@ export default function SOSScreen() {
     Linking.openURL(url);
   };
 
-  return (
-    <LinearGradient colors={["#87a9e0ff", "#eef3f5ff"]} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.container}>
+ return (
+  <LinearGradient colors={["#87a9e0", "#eef3f5"]} style={{ flex: 1 }}>
+    {/* single wrapper so no raw text is a direct child of LinearGradient */}
+    <View style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Stack.Screen options={{ headerShown: false }} />
 
         {/* Header */}
@@ -210,7 +212,6 @@ export default function SOSScreen() {
         <Text style={styles.sectionTitle}>Immediate Coping Tips</Text>
         <View style={styles.tipsCard}>
           <View style={styles.tipRow}>
-            {/* <Ionicons name="breath" size={18} color="#4f8cff" /> */}
             <Text style={styles.tipText}>Try 4–7–8 breathing: inhale 4s, hold 7s, exhale 8s (×4).</Text>
           </View>
           <View style={styles.tipRow}>
@@ -236,33 +237,41 @@ export default function SOSScreen() {
       {/* Add Contact Modal */}
       <Modal transparent visible={modalOpen} animationType="fade" onRequestClose={() => setModalOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setModalOpen(false)}>
-          <Pressable style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Add Personal Contact</Text>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+            style={{ width: "100%" }}
+          >
+            <Pressable style={styles.modalSheet}>
+              <Text style={styles.modalTitle}>Add Personal Contact</Text>
 
-            <TextInput
-              placeholder="Name (e.g., Mom)"
-              placeholderTextColor="#999"
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-            />
-            <TextInput
-              placeholder="Phone (e.g., +911234567890)"
-              placeholderTextColor="#999"
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-            />
+              <TextInput
+                placeholder="Name (e.g., Mom)"
+                placeholderTextColor="#999"
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+              />
+              <TextInput
+                placeholder="Phone (e.g., +911234567890)"
+                placeholderTextColor="#999"
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
 
-            <TouchableOpacity style={styles.primaryBtn} onPress={addContact} activeOpacity={0.9}>
-              <Text style={styles.primaryBtnText}>Save Contact</Text>
-            </TouchableOpacity>
-          </Pressable>
+              <TouchableOpacity style={styles.primaryBtn} onPress={addContact} activeOpacity={0.9}>
+                <Text style={styles.primaryBtnText}>Save Contact</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
-    </LinearGradient>
-  );
+    </View>
+  </LinearGradient>
+);
+
 }
 
 const styles = StyleSheet.create({

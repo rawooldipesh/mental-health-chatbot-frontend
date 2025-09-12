@@ -14,7 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, Stack } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-
+import { KeyboardAvoidingView, Platform } from "react-native";
 type MoodKey = "great" | "good" | "neutral" | "low" | "down";
 
 const MOODS: { key: MoodKey; label: string; color: string; dot: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -103,114 +103,144 @@ export default function MoodDetectScreen() {
     }
   };
 
-  return (
-    <LinearGradient colors={["#87a9e0ff", "#eef3f5ff"]} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Stack.Screen options={{ headerShown: false }} />
+return (
+  <LinearGradient colors={["#87a9e0", "#eef3f5"]} style={{ flex: 1 }}>
+    {/* single wrapper so LinearGradient has exactly one child */}
+    <View style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Stack.Screen options={{ headerShown: false }} />
 
-        {/* Top bar */}
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.push("/tabs/homescreen")}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="chevron-back" size={20} color="#4f8cff" />
-            <Text style={styles.backText}>Home</Text>
-          </TouchableOpacity>
-          <Text style={styles.header}>Mood Calendar</Text>
-          <View style={{ width: 60 }} />
-        </View>
-
-        {/* Calendar */}
-        <Calendar
-          onDayPress={handleDayPress}
-          markedDates={markedDates}
-          theme={{
-            backgroundColor: "transparent",
-            calendarBackground: "#ffffff",
-            textSectionTitleColor: "#4f8cff",
-            selectedDayBackgroundColor: "#4f8cff",
-            selectedDayTextColor: "#ffffff",
-            todayTextColor: "#4f8cff",
-            dayTextColor: "#333333",
-            textDisabledColor: "#cccccc",
-            monthTextColor: "#333333",
-            arrowColor: "#4f8cff",
-            dotColor: "#4f8cff",
-            selectedDotColor: "#ffffff",
-            textDayFontSize: 16,
-            textMonthFontSize: 18,
-            textMonthFontWeight: "600",
-            textDayHeaderFontSize: 14,
-          }}
-          style={styles.calendar}
-        />
-
-        {/* How are you feeling today? */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>How are you feeling today?</Text>
-          <View style={styles.moodRow}>
-            {MOODS.map((m) => {
-              const active = selectedMood === m.key;
-              return (
-                <TouchableOpacity
-                  key={m.key}
-                  style={[
-                    styles.moodChip,
-                    { borderColor: m.color, backgroundColor: active ? m.color : "white" },
-                  ]}
-                  onPress={() => setSelectedMood(m.key)}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons
-                    name={m.icon}
-                    size={18}
-                    color={active ? "#fff" : m.color}
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text style={[styles.moodChipText, { color: active ? "#fff" : "#111" }]}>
-                    {m.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+          {/* Top bar */}
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => router.push("/tabs/homescreen")}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="chevron-back" size={20} color="#4f8cff" />
+              <Text style={styles.backText}>Home</Text>
+            </TouchableOpacity>
+            <Text style={styles.header}>Mood Calendar</Text>
+            <View style={{ width: 60 }} />
           </View>
 
-          <TextInput
-            placeholder="Optional note (e.g., 'Long day, but handled it well')"
-            placeholderTextColor="#999"
-            style={styles.noteInput}
-            value={note}
-            onChangeText={setNote}
-            multiline
+          {/* Calendar */}
+          <Calendar
+            onDayPress={handleDayPress}
+            markedDates={markedDates}
+            theme={{
+              backgroundColor: "transparent",
+              calendarBackground: "#ffffff",
+              textSectionTitleColor: "#4f8cff",
+              selectedDayBackgroundColor: "#4f8cff",
+              selectedDayTextColor: "#ffffff",
+              todayTextColor: "#4f8cff",
+              dayTextColor: "#333333",
+              textDisabledColor: "#cccccc",
+              monthTextColor: "#333333",
+              arrowColor: "#4f8cff",
+              dotColor: "#4f8cff",
+              selectedDotColor: "#ffffff",
+              textDayFontSize: 16,
+              textMonthFontSize: 18,
+              textMonthFontWeight: "600",
+              textDayHeaderFontSize: 14,
+            }}
+            style={styles.calendar}
           />
 
-          <TouchableOpacity style={styles.saveBtn} onPress={saveTodayMood} activeOpacity={0.9}>
-            <Text style={styles.saveBtnText}>Save Today’s Mood</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Selected day info */}
-        {selectedDay && (
+          {/* How are you feeling today? */}
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Selected Day</Text>
-            <Text style={styles.subText}>{selectedDay}</Text>
-            <View style={{ height: 8 }} />
-            {moodData[selectedDay] ? (
-              <View style={styles.moodBox}>
-                <Text style={styles.moodText}>
-                  Mood: {MOODS.find((m) => m.key === moodData[selectedDay])?.label}
-                </Text>
-              </View>
-            ) : (
-              <Text style={styles.subText}>No mood logged for this date.</Text>
-            )}
+            <Text style={styles.sectionTitle}>How are you feeling today?</Text>
+            <View style={styles.moodRow}>
+              {MOODS.map((m) => {
+                const active = selectedMood === m.key;
+                return (
+                  <TouchableOpacity
+                    key={m.key}
+                    style={[
+                      styles.moodChip,
+                      {
+                        borderColor: m.color,
+                        backgroundColor: active ? m.color : "white",
+                      },
+                    ]}
+                    onPress={() => setSelectedMood(m.key)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name={m.icon}
+                      size={18}
+                      color={active ? "#fff" : m.color}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text
+                      style={[
+                        styles.moodChipText,
+                        { color: active ? "#fff" : "#111" },
+                      ]}
+                    >
+                      {m.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TextInput
+              placeholder="Optional note (e.g., 'Long day, but handled it well')"
+              placeholderTextColor="#999"
+              style={styles.noteInput}
+              value={note}
+              onChangeText={setNote}
+              multiline
+              returnKeyType="done"
+              blurOnSubmit
+            />
+
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={saveTodayMood}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.saveBtnText}>Save Today’s Mood</Text>
+            </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
-    </LinearGradient>
-  );
+
+          {/* Selected day info */}
+          {selectedDay && (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Selected Day</Text>
+              <Text style={styles.subText}>{selectedDay}</Text>
+              <View style={{ height: 8 }} />
+              {moodData[selectedDay] ? (
+                <View style={styles.moodBox}>
+                  <Text style={styles.moodText}>
+                    Mood: {MOODS.find((m) => m.key === moodData[selectedDay])?.label}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.subText}>No mood logged for this date.</Text>
+              )}
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
+  </LinearGradient>
+);
+
+
+
+
 }
 
 const styles = StyleSheet.create({

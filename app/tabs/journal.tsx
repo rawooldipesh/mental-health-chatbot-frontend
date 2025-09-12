@@ -15,6 +15,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Stack } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import { KeyboardAvoidingView, Platform } from "react-native";
+
 
 type JournalEntry = {
   id: string;
@@ -134,8 +136,13 @@ export default function JournalScreen() {
   };
 
   return (
-    <LinearGradient colors={["#87a9e0ff", "#eef3f5ff"]} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.container}>
+  <LinearGradient colors={["#87a9e0", "#eef3f5"]} style={{ flex: 1 }}>
+    {/* single wrapper so LinearGradient has exactly one child */}
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
         <Stack.Screen options={{ headerShown: false }} />
 
         {/* Header */}
@@ -204,34 +211,43 @@ export default function JournalScreen() {
       {/* Create/Edit modal */}
       <Modal transparent visible={modalOpen} animationType="fade" onRequestClose={() => setModalOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setModalOpen(false)}>
-          <Pressable style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>{editing ? "Edit Entry" : "New Entry"}</Text>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+            style={{ width: "100%" }}
+          >
+            <Pressable style={styles.modalSheet}>
+              <Text style={styles.modalTitle}>{editing ? "Edit Entry" : "New Entry"}</Text>
 
-            <TextInput
-              placeholder="Title (optional)"
-              placeholderTextColor="#999"
-              style={styles.input}
-              value={title}
-              onChangeText={setTitle}
-            />
+              <TextInput
+                placeholder="Title (optional)"
+                placeholderTextColor="#999"
+                style={styles.input}
+                value={title}
+                onChangeText={setTitle}
+                returnKeyType="next"
+              />
 
-            <TextInput
-              placeholder="Write your reflection..."
-              placeholderTextColor="#999"
-              style={styles.textArea}
-              value={content}
-              onChangeText={setContent}
-              multiline
-            />
+              <TextInput
+                placeholder="Write your reflection..."
+                placeholderTextColor="#999"
+                style={styles.textArea}
+                value={content}
+                onChangeText={setContent}
+                multiline
+              />
 
-            <TouchableOpacity style={styles.primaryBtn} onPress={saveEntry} activeOpacity={0.9}>
-              <Text style={styles.primaryBtnText}>{editing ? "Save Changes" : "Save Entry"}</Text>
-            </TouchableOpacity>
-          </Pressable>
+              <TouchableOpacity style={styles.primaryBtn} onPress={saveEntry} activeOpacity={0.9}>
+                <Text style={styles.primaryBtnText}>{editing ? "Save Changes" : "Save Entry"}</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
-    </LinearGradient>
-  );
+    </View>
+  </LinearGradient>
+);
+
 }
 
 const styles = StyleSheet.create({
