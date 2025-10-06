@@ -16,8 +16,10 @@ export interface LoginResponse {
   user: User;
 }
 
+// ✅ updated: include token (optional in case backend sometimes omits it)
 export interface RegisterResponse {
   success: boolean;
+  token?: string;
   user: User;
 }
 

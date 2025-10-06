@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import * as SecureStore from "expo-secure-store";
+import { storage } from "@/utils/storage";
 import { register as registerApi } from "../../services/authService";
 
 const { width } = Dimensions.get("window");
@@ -56,11 +56,12 @@ export default function RegisterScreen() {
       // backend should return { token, user }
 
       if (res.token) {
-        await SecureStore.setItemAsync("token", res.token);
+        await storage.setItemAsync("token", res.token);
       }
       if (res.user) {
-        await SecureStore.setItemAsync("user", JSON.stringify(res.user));
+        await storage.setItemAsync("user", JSON.stringify(res.user));
       }
+
 
       Alert.alert("Success", `Welcome ${res.user?.email || ""}!`);
       router.replace("/tabs/homescreen");

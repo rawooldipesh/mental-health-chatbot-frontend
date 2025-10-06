@@ -1,17 +1,18 @@
 // app/services/api.ts
 import { API_BASE_URL } from "../utils/config";
-import * as SecureStore from "expo-secure-store";
+import { storage } from "../utils/storage";
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /* ---------- Auth header helper ---------- */
 async function authHeaders() {
-  const token = await SecureStore.getItemAsync("token");
+  const token = await storage.getItemAsync("token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
+
 
 /* ---------- Core request helper ---------- */
 export async function request<T>(

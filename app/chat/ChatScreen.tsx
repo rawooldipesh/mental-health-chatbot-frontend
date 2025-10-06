@@ -147,12 +147,20 @@ export default function ChatScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <Ionicons name="chatbubbles-outline" size={26} color="#4f8cff" style={{ marginRight: 8 }} />
+          <Ionicons
+            name="chatbubbles-outline"
+            size={26}
+            color="#4f8cff"
+            style={{ marginRight: 8 }}
+          />
           <Text style={styles.headerTitle}>FEELFREE</Text>
 
           {/* Right actions */}
           <View style={{ position: "absolute", right: 12, flexDirection: "row" }}>
-            <TouchableOpacity onPress={() => setPickerOpen(true)} style={{ marginRight: 10 }}>
+            <TouchableOpacity
+              onPress={() => setPickerOpen(true)}
+              style={{ marginRight: 10 }}
+            >
               <Ionicons name="albums-outline" size={22} color="#4f8cff" />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleNewChat}>
@@ -201,33 +209,92 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Session picker modal */}
+        {/* Session picker modal with horizontal scroll row */}
         <Modal
           transparent
           visible={pickerOpen}
           animationType="fade"
           onRequestClose={() => setPickerOpen(false)}
         >
-          <Pressable style={styles.modalBackdrop} onPress={() => setPickerOpen(false)}>
+          {/* Backdrop sits at top so we can anchor under header */}
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setPickerOpen(false)}
+          >
             <View style={styles.modalSheet}>
               <Text style={styles.modalTitle}>Your Sessions</Text>
-              {sessions.length === 0 ? (
-                <Text style={{ color: "#555", marginTop: 8 }}>No previous sessions.</Text>
-              ) : (
-                sessions.map((s) => (
-                  <TouchableOpacity
-                    key={s._id}
-                    style={styles.sessionItem}
-                    onPress={() => openSession(s._id)}
-                  >
-                    <Ionicons name="chatbox-ellipses-outline" size={18} color="#4f8cff" />
-                    <Text style={styles.sessionText}>
-                      {new Date(s.createdAt || s.startedAt).toLocaleString()}
-                      {s.endedAt ? "  (ended)" : ""}
-                    </Text>
-                  </TouchableOpacity>
-                ))
-              )}
+
+              {/* Horizontal scrollable session chips */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.sessionsRow}
+              >
+                {sessions.length === 0 ? (
+                  <View style={styles.emptyChip}>
+                    <Text style={{ color: "#666" }}>No sessions</Text>
+                  </View>
+                ) : (
+                  sessions.map((s) => {
+                    const ended = !!s.endedAt;
+                    const label = new Date(s.createdAt || s.startedAt).toLocaleString();
+                    const active = s._id === sessionId;
+                    return (
+                      <TouchableOpacity
+                        key={s._id}
+                        style={[
+                          styles.sessionChip,
+                          active && styles.sessionChipActive,
+                          ended && styles.sessionChipEnded,
+                        ]}
+                        onPress={() => openSession(s._id)}
+                      >
+                        <Text
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          style={[
+                            styles.sessionChipText,
+                            active && styles.sessionChipTextActive,
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                        {ended && <Text style={styles.endedBadge}>ended</Text>}
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+              </ScrollView>
+
+              {/* Divider */}
+              <View style={styles.divider} />
+
+              {/* Full vertical list (scrollable) */}
+              <ScrollView style={{ maxHeight: 260 }}>
+                {sessions.length === 0 ? (
+                  <Text style={{ color: "#555", marginTop: 8 }}>
+                    No previous sessions.
+                  </Text>
+                ) : (
+                  sessions.map((s) => (
+                    <TouchableOpacity
+                      key={s._id}
+                      style={styles.sessionItem}
+                      onPress={() => openSession(s._id)}
+                    >
+                      <Ionicons
+                        name="chatbox-ellipses-outline"
+                        size={18}
+                        color="#4f8cff"
+                      />
+                      <Text style={styles.sessionText}>
+                        {new Date(s.createdAt || s.startedAt).toLocaleString()}
+                        {s.endedAt ? "  (ended)" : ""}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
             </View>
           </Pressable>
         </Modal>
@@ -313,13 +380,17 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.25)",
-    justifyContent: "flex-end",
+    justifyContent: "flex-start", // anchor to top
+    paddingTop: 70, // place modal under header (adjust if your header height changes)
   },
   modalSheet: {
     backgroundColor: "#fff",
     padding: 16,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
+    marginHorizontal: 10,
+    // shadow for iOS/Android
+    elevation: 6,
   },
   modalTitle: {
     fontSize: 16,
@@ -327,6 +398,62 @@ const styles = StyleSheet.create({
     color: "#111",
     marginBottom: 10,
   },
+
+  // new horizontal sessions row
+  sessionsRow: {
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+    alignItems: "center",
+  },
+  sessionChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "#f2f7ff",
+    marginRight: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 120,
+  },
+  sessionChipActive: {
+    backgroundColor: "#4f8cff",
+  },
+  sessionChipEnded: {
+    opacity: 0.8,
+  },
+  sessionChipText: {
+    fontSize: 12,
+    color: "#114074",
+  },
+  sessionChipTextActive: {
+    color: "#fff",
+  },
+  endedBadge: {
+    marginTop: 4,
+    fontSize: 10,
+    color: "#fff",
+    backgroundColor: "#cc3f3f",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    overflow: "hidden",
+    alignSelf: "center",
+  },
+  emptyChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#eee",
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: "#eee",
+    marginVertical: 10,
+  },
+
   sessionItem: {
     flexDirection: "row",
     alignItems: "center",

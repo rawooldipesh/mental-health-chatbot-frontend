@@ -3,7 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, View, Alert, TouchableOpacity } fr
 import { router, Stack } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import FeatureButton from "@/components/featureButton";
-import * as SecureStore from "expo-secure-store";
+import { storage } from "@/utils/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { request } from "../../services/api";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,7 +25,7 @@ export default function HomeScreen() {
         setDisplayName(niceName);
       } catch {
         // 2) Fallback: read from SecureStore if /auth/me isn't available
-        const userStr = await SecureStore.getItemAsync("user");
+        const userStr = await storage.getItemAsync("user");
         if (userStr) {
           try {
             const user = JSON.parse(userStr) as { id?: string; email?: string; name?: string };
@@ -46,8 +46,8 @@ export default function HomeScreen() {
   const handleLogout = async () => {
     try {
       // Clear auth + any cached session info
-      await SecureStore.deleteItemAsync("token");
-      await SecureStore.deleteItemAsync("user");
+      await storage.deleteItemAsync("token");
+      await storage.deleteItemAsync("user");
       await AsyncStorage.removeItem("sessionId"); // if you cached session id
       await AsyncStorage.removeItem("moodData");  // optional: local mood cache
 

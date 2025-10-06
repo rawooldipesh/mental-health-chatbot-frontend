@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import * as SecureStore from "expo-secure-store";
+import { storage } from "@/utils/storage";
 import { login as loginApi } from "../../services/authService";
 
 const { width } = Dimensions.get("window");
@@ -28,41 +28,41 @@ export default function App() {
   const [err, setErr] = useState<string | null>(null);
 
   const handleLogin = async () => {
-  setErr(null);
+    setErr(null);
 
-  if (!email.trim() || !password.trim()) {
-    setErr("Please enter email and password.");
-    return;
-  }
-  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  if (!emailOk) {
-    setErr("Please enter a valid email.");
-    return;
-  }
-
-  try {
-    setLoading(true);
-    const res = await loginApi({ email, password }); // { token, user }
-
-    // Save token + user securely
-    await SecureStore.setItemAsync("token", res.token);
-    if (res.user) {
-      await SecureStore.setItemAsync("user", JSON.stringify(res.user));
+    if (!email.trim() || !password.trim()) {
+      setErr("Please enter email and password.");
+      return;
+    }
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!emailOk) {
+      setErr("Please enter a valid email.");
+      return;
     }
 
-    Alert.alert("Success", `Welcome back ${res.user?.name || ""}!`);
+    try {
+      setLoading(true);
+      const res = await loginApi({ email, password }); // { token, user }
+      // Save token + user securely (web uses localStorage via shim)
+      await storage.setItemAsync("token", res.token);
+      if (res.user) {
+        await storage.setItemAsync("user", JSON.stringify(res.user));
+      }
 
-    router.replace("/tabs/homescreen");
 
-  } catch (e: any) {
-    console.log("Login error:", e);
-    const msg = e?.response?.data?.message || e?.message || "Login failed. Please try again.";
-    setErr(msg);
-    Alert.alert("Login failed", msg);
-  } finally {
-    setLoading(false);
-  }
-};
+      Alert.alert("Success", `Welcome back ${res.user?.name || ""}!`);
+
+      router.replace("/tabs/homescreen");
+
+    } catch (e: any) {
+      console.log("Login error:", e);
+      const msg = e?.response?.data?.message || e?.message || "Login failed. Please try again.";
+      setErr(msg);
+      Alert.alert("Login failed", msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   return (
@@ -70,96 +70,96 @@ export default function App() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <KeyboardAvoidingView
-  behavior={Platform.select({ ios: "padding", android: undefined })}
-  style={{ flex: 1, width: "100%" }}
->
-  {/* Back to Home */}
-  <TouchableOpacity
-    style={styles.backBtn}
-    onPress={() => router.push("/")}
-  >
-    <Ionicons name="arrow-back" size={20} color="#6c63ff" />
-    <Text style={styles.backText}>Back to Home</Text>
-  </TouchableOpacity>
-
-  {/* Center wrapper */}
-  <View style={styles.centerWrapper}>
-    <View style={styles.card}>
-      {/* Icon */}
-      <View style={styles.iconWrapper}>
-        <Ionicons name="heart-outline" size={30} color="white" />
-      </View>
-
-      <Text style={styles.title}>Welcome Back</Text>
-      <Text style={styles.subtitle}>
-        Sign in to continue your wellness journey
-      </Text>
-
-      {/* Email input */}
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter your email"
-        placeholderTextColor="#aaa"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        value={email}
-        onChangeText={setEmail}
-      />
-
-      {/* Password */}
-      <Text style={styles.label}>Password</Text>
-      <View style={styles.passwordWrapper}>
-        <TextInput
-          style={styles.passwordInput}
-          placeholder="Enter your password"
-          placeholderTextColor="#aaa"
-          secureTextEntry={!showPassword}
-          value={password}
-          onChangeText={setPassword}
-        />
+        behavior={Platform.select({ ios: "padding", android: undefined })}
+        style={{ flex: 1, width: "100%" }}
+      >
+        {/* Back to Home */}
         <TouchableOpacity
-          onPress={() => setShowPassword(!showPassword)}
-          style={styles.eyeIcon}
+          style={styles.backBtn}
+          onPress={() => router.push("/")}
         >
-          <Ionicons
-            name={showPassword ? "eye-off" : "eye"}
-            size={20}
-            color="#666"
-          />
+          <Ionicons name="arrow-back" size={20} color="#6c63ff" />
+          <Text style={styles.backText}>Back to Home</Text>
         </TouchableOpacity>
-      </View>
 
-      {err ? <Text style={styles.errorText}>{err}</Text> : null}
+        {/* Center wrapper */}
+        <View style={styles.centerWrapper}>
+          <View style={styles.card}>
+            {/* Icon */}
+            <View style={styles.iconWrapper}>
+              <Ionicons name="heart-outline" size={30} color="white" />
+            </View>
 
-      {/* Sign in */}
-      <TouchableOpacity
-        style={styles.signInBtn}
-        onPress={handleLogin}
-        disabled={loading}
-      >
-        <LinearGradient
-          colors={["#3b82f6", "#34d399"]}
-          style={[styles.gradientBtn, loading && { opacity: 0.7 }]}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.signInText}>Sign In</Text>
-          )}
-        </LinearGradient>
-      </TouchableOpacity>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>
+              Sign in to continue your wellness journey
+            </Text>
 
-      <Text
-        style={styles.footerText}
-        onPress={() => router.push("/(auth)/register")}
-      >
-        Don’t have an account?{" "}
-        <Text style={styles.signupText}>Sign up</Text>
-      </Text>
-    </View>
-  </View>
-</KeyboardAvoidingView>
+            {/* Email input */}
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your email"
+              placeholderTextColor="#aaa"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+            />
+
+            {/* Password */}
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.passwordWrapper}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Enter your password"
+                placeholderTextColor="#aaa"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={20}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {err ? <Text style={styles.errorText}>{err}</Text> : null}
+
+            {/* Sign in */}
+            <TouchableOpacity
+              style={styles.signInBtn}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              <LinearGradient
+                colors={["#3b82f6", "#34d399"]}
+                style={[styles.gradientBtn, loading && { opacity: 0.7 }]}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.signInText}>Sign In</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <Text
+              style={styles.footerText}
+              onPress={() => router.push("/(auth)/register")}
+            >
+              Don’t have an account?{" "}
+              <Text style={styles.signupText}>Sign up</Text>
+            </Text>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
 
     </SafeAreaView>
   );
@@ -279,10 +279,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   centerWrapper: {
-  flex: 1,
-  justifyContent: "center",
-  alignItems: "center",
-  paddingHorizontal: 20,
-},
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
 
 });
