@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { storage } from "@/utils/storage";
 import { register as registerApi } from "../../services/authService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
@@ -56,10 +57,10 @@ export default function RegisterScreen() {
       // backend should return { token, user }
 
       if (res.token) {
-        await storage.setItemAsync("token", res.token);
+  await AsyncStorage.setItem("token", res.token);
       }
       if (res.user) {
-        await storage.setItemAsync("user", JSON.stringify(res.user));
+  await AsyncStorage.setItem("user", JSON.stringify(res.user));
       }
 
 

@@ -1,4 +1,5 @@
 // app/services/api.ts
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../utils/config";
 import { storage } from "../utils/storage";
 
@@ -6,7 +7,7 @@ type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /* ---------- Auth header helper ---------- */
 async function authHeaders() {
-  const token = await storage.getItemAsync("token");
+  const token = await AsyncStorage.getItem("token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

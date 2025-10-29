@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { router, Stack } from "expo-router";
 import {
   SafeAreaView,
@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { storage } from "@/utils/storage";
 import { login as loginApi } from "../../services/authService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
@@ -44,9 +45,11 @@ export default function App() {
       setLoading(true);
       const res = await loginApi({ email, password }); // { token, user }
       // Save token + user securely (web uses localStorage via shim)
-      await storage.setItemAsync("token", res.token);
+      await AsyncStorage.setItem("token", res.token);
+      const savedToken = await AsyncStorage.getItem("token");
+console.log("DEBUG: token after login:", savedToken);
       if (res.user) {
-        await storage.setItemAsync("user", JSON.stringify(res.user));
+  await AsyncStorage.setItem("user", JSON.stringify(res.user));
       }
 
 
