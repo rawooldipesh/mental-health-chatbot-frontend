@@ -22,7 +22,7 @@ const handleResponse = async (res: Response) => {
   }
 
   const json = await res.json();
-  console.log("DEBUG: API response:", json);
+  // console.log("DEBUG: API response:", json);
   return json;
 };
 
@@ -80,4 +80,28 @@ export const deleteMood = async (
   });
 
   return handleResponse(res);
+};
+export const getMoodSummary = async (userId: string) => {
+  try {
+    const token = await AsyncStorage.getItem("token");
+    if (!token) throw new Error("No token found");
+
+    // ✅ Correct URL: /api/moods/summary/:userId
+    const res = await fetch(`${API_BASE_URL}/moods/summary/${userId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Backend error:", errText);
+      throw new Error("Failed to fetch mood summary");
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("getMoodSummary error:", err);
+    throw err;
+  }
 };

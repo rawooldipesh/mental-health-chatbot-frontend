@@ -22,9 +22,14 @@ import {
   saveMood,
   fetchMoodByDate,
   Mood,
+  deleteMood,
+  getMoodSummary,
 } from "../../services/moodService"; // ✅ backend service imports
-
+import { analyzeSentiment, sentimentLabelToScore } from "../../utils/sentimentHelper"; // ✅ sentiment analysis import
+import AsyncStorage from "@react-native-async-storage/async-storage";
 type MoodKey = "great" | "good" | "neutral" | "low" | "down";
+import { BarChart } from "react-native-chart-kit";
+import { Dimensions } from "react-native";
 
 const MOODS: {
   key: MoodKey;
@@ -33,12 +38,12 @@ const MOODS: {
   dot: string;
   icon: keyof typeof Ionicons.glyphMap;
 }[] = [
-  { key: "great", label: "Great", color: "#34d399", dot: "#34d399", icon: "happy-outline" },
-  { key: "good", label: "Good", color: "#60a5fa", dot: "#60a5fa", icon: "happy-outline" },
-  { key: "neutral", label: "Neutral", color: "#a3a3a3", dot: "#a3a3a3", icon: "remove-outline" },
-  { key: "low", label: "Low", color: "#f59e0b", dot: "#f59e0b", icon: "sad-outline" },
-  { key: "down", label: "Down", color: "#ef4444", dot: "#ef4444", icon: "sad-outline" },
-];
+    { key: "great", label: "Great", color: "#34d399", dot: "#34d399", icon: "happy-outline" },
+    { key: "good", label: "Good", color: "#60a5fa", dot: "#60a5fa", icon: "happy-outline" },
+    { key: "neutral", label: "Neutral", color: "#a3a3a3", dot: "#a3a3a3", icon: "remove-outline" },
+    { key: "low", label: "Low", color: "#f59e0b", dot: "#f59e0b", icon: "sad-outline" },
+    { key: "down", label: "Down", color: "#ef4444", dot: "#ef4444", icon: "sad-outline" },
+  ];
 
 // ✅ Helper functions
 function todayStr() {
@@ -58,24 +63,60 @@ export default function MoodCalendarScreen() {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const router = useRouter();
+  const [summary, setSummary] = useState<{
+    avgSentiment?: number;
+    totalEntries?: number;
+    positive?: number;
+    neutral?: number;
+    negative?: number;
+  }>({});
 
   // ✅ Fetch moods once from backend on mount
-  useEffect(() => {
-    (async () => {
-      try {
-        const response = await fetchAllMoods();
-        if (response.moods && Array.isArray(response.moods)) {
-          const map: Record<string, MoodKey> = {};
-          response.moods.forEach((m) => (map[m.date] = m.mood as MoodKey));
-          setMoodData(map);
-        } else {
-          console.warn("Fetched moods are not an array:", response.moods);
-        }
-      } catch (err) {
-        console.warn("Failed to load moods:", err);
+ useEffect(() => {
+  (async () => {
+    try {
+      const response = await fetchAllMoods();
+      if (response.moods && Array.isArray(response.moods)) {
+        const map: Record<string, MoodKey> = {};
+        response.moods.forEach((m) => (map[m.date] = m.mood as MoodKey));
+        setMoodData(map);
       }
-    })();
-  }, []);
+    } catch (err) {
+      console.warn("Failed to load moods:", err);
+    }
+  })();
+
+ const fetchSummary = async () => {
+  try {
+    const user = await AsyncStorage.getItem("user");
+    console.log("Stored user value:", user);
+
+    if (!user) {
+      console.warn("No user found in storage");
+      return;
+    }
+
+    const parsedUser = JSON.parse(user);
+    const userId = parsedUser.id || parsedUser._id; // ✅ handle both cases
+    if (!userId) {
+      console.warn("User object missing id/_id:", parsedUser);
+      return;
+    }
+
+    console.log("📌 Fetching summary for user:", userId);
+    const summary = await getMoodSummary(userId); // ✅ pass correct ID
+    console.log("✅ Weekly Sentiment Summary:", summary);
+    setSummary(summary);
+  } catch (err) {
+    console.error("Error fetching summary:", err);
+  }
+};
+
+
+  fetchSummary();
+}, []);
+
+
 
   // ✅ Highlight marked dates + selected day
   const markedDates = useMemo(() => {
@@ -121,52 +162,97 @@ export default function MoodCalendarScreen() {
     }
   };
 
-  // ✅ Save mood for selected or today
-// ✅ Save mood for selected or today (robust + debug)
-const saveMoodForDate = async (date?: string) => {
-  const target = date || todayStr();
+  // ✅ Save mood for selected or today (robust + debug)
+  const saveMoodForDate = async (date?: string) => {
+    const target = date || todayStr();
 
-  if (isFutureDate(target)) {
-    Alert.alert("Invalid date", "Cannot save a mood for a future date.");
-    return;
-  }
-  if (!selectedMood) {
-    Alert.alert("Select a mood", "Please choose how you feel.");
-    return;
-  }
-
-  try {
-    const saved = await saveMood({ date: target, mood: selectedMood, note });
-    console.log("DEBUG: saveMood response:", saved);
-
-    // ✅ Support multiple backend shapes: either { success, mood } or direct { date, mood }
-    const returnedMood: Mood | undefined =
-      saved?.mood || (("date" in (saved as any)) ? (saved as any) : undefined);
-
-    if (returnedMood && returnedMood.date) {
-      // ✅ Update local mood data immediately for real-time UI refresh
-      setMoodData((prev) => ({
-        ...prev,
-        [returnedMood.date]: returnedMood.mood as MoodKey,
-      }));
-    } else {
-      // fallback local update
-      setMoodData((prev) => ({ ...prev, [target]: selectedMood }));
+    if (isFutureDate(target)) {
+      Alert.alert("Invalid date", "Cannot save a mood for a future date.");
+      return;
+    }
+    if (!selectedMood) {
+      Alert.alert("Select a mood", "Please choose how you feel.");
+      return;
     }
 
-    // ✅ Refresh selected day and note
-    setSelectedDay(target);
-    setNote("");
+    try {
+      // 🧠 Step 1: Analyze sentiment of note
+      const sentimentLabel = analyzeSentiment(note);
+      const sentimentScore = sentimentLabelToScore(sentimentLabel);
 
-    Alert.alert("Success", `Your mood for ${target} was saved!`);
+      // 🧠 Step 2: Save mood with numeric sentiment
+      const saved = await saveMood({
+        date: target,
+        mood: selectedMood,
+        note,
+        sentiment: sentimentScore, // numeric value sent to backend
+      });
 
-    // ✅ Optional: navigate back to home after save
-    // router.replace("/home");   // uncomment this line if you want redirect
-  } catch (err) {
-    console.error("saveMood error (catch):", err);
-    Alert.alert("Error", "Failed to save mood. Please try again later.");
-  }
-};
+      console.log("DEBUG: saveMood response:", saved);
+
+      // 🧠 Step 3: Handle response and update UI
+      const returnedMood: Mood | undefined =
+        saved?.mood || (("date" in (saved as any)) ? (saved as any) : undefined);
+
+      if (returnedMood && returnedMood.date) {
+        setMoodData((prev) => ({
+          ...prev,
+          [returnedMood.date]: returnedMood.mood as MoodKey,
+        }));
+      } else {
+        setMoodData((prev) => ({ ...prev, [target]: selectedMood }));
+      }
+
+      setSelectedDay(target);
+      setNote("");
+      Alert.alert(
+        "Success",
+        `Your mood for ${target} was saved! (Sentiment: ${sentimentLabel})`
+      );
+
+    } catch (err) {
+      console.error("saveMood error (catch):", err);
+      Alert.alert("Error", "Failed to save mood. Please try again later.");
+    }
+  };
+
+
+  const handleDeleteMood = async (date: string) => {
+    Alert.alert(
+      "Delete Mood",
+      `Are you sure you want to delete your mood for ${date}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await deleteMood(date);
+              console.log("Delete mood response:", res);
+
+              if (res?.success) {
+                // Remove mood locally
+                setMoodData((prev) => {
+                  const updated = { ...prev };
+                  delete updated[date];
+                  return updated;
+                });
+
+                Alert.alert("Deleted", `Mood for ${date} has been removed.`);
+              } else {
+                Alert.alert("Error", "Could not delete mood. Please try again.");
+              }
+            } catch (err) {
+              console.error("Delete mood error:", err);
+              Alert.alert("Error", "Failed to delete mood. Try again later.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
 
 
   const saveTodayMood = () => saveMoodForDate(todayStr());
@@ -286,14 +372,118 @@ const saveMoodForDate = async (date?: string) => {
                 <Text style={styles.subText}>{selectedDay}</Text>
                 <View style={{ height: 8 }} />
                 {moodData[selectedDay] ? (
-                  <View style={styles.moodBox}>
+                  <View style={[styles.moodBox, { alignItems: "center" }]}>
                     <Text style={styles.moodText}>
                       Mood: {MOODS.find((m) => m.key === moodData[selectedDay])?.label}
                     </Text>
+
+                    {/* <TouchableOpacity
+                      onPress={() => handleDeleteMood(selectedDay)}
+                      style={styles.deleteBtn}
+                      activeOpacity={0.8}
+                    > */}
+                      {/* <Ionicons name="trash-outline" size={18} color="#fff" /> */}
+                      {/* <Text style={styles.deleteBtnText}>Delete Mood</Text> */}
+                    {/* </TouchableOpacity> */}
                   </View>
                 ) : (
                   <Text style={styles.subText}>No mood logged for this date.</Text>
                 )}
+               {summary && (
+ <View
+  style={{
+    marginTop: 20,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 15,
+    elevation: 2,
+  }}
+>
+  {/* <Text
+    style={{
+      fontWeight: "bold",
+      fontSize: 16,
+      marginBottom: 12,
+      textAlign: "center",
+    }}
+  > */}
+    {/* Mood History (Last 7 Days) */}
+  {/* </Text> */}
+
+  {/* <ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    contentContainerStyle={{ paddingHorizontal: 10 }}
+  >
+    {Object.entries(moodData)
+      .slice(-7)
+      .map(([date, mood]) => (
+        <View
+          key={date}
+          style={{
+            alignItems: "center",
+            marginHorizontal: 10,
+            backgroundColor: "#f8fafc",
+            borderRadius: 10,
+            padding: 10,
+            width: 80,
+            borderWidth: 1,
+            borderColor: "#e2e8f0",
+          }}
+        >
+          <Text style={{ fontWeight: "600", color: "#183f88" }}>
+            {new Date(date).toLocaleDateString("en-US", {
+              weekday: "short",
+            })}
+          </Text>
+
+          <Text style={{ fontSize: 28, marginVertical: 4 }}>
+            {mood === "great"
+              ? "😄"
+              : mood === "neutral"
+              ? "😐"
+              : mood === "low"
+              ? "😔"
+              : mood === "down"
+              ? "😢"
+              : "🤔"}
+          </Text>
+
+          <Text style={{ fontSize: 12, color: "#64748b" }}>
+            {mood.charAt(0).toUpperCase() + mood.slice(1)}
+          </Text>
+        </View>
+      ))}
+  </ScrollView> */}
+
+  <View
+    style={{
+      backgroundColor: "#e0f2fe",
+      borderRadius: 10,
+      marginTop: 15,
+      padding: 10,
+    }}
+  >
+    <Text style={{ fontWeight: "700", color: "#183f88", marginBottom: 6 }}>
+      Insight
+    </Text>
+    <Text style={{ color: "#333", fontSize: 14, textAlign: "center" }}>
+      {summary
+        ? summary.positive! > (summary.negative || 0)
+          ? "You had more positive moods this week! Keep up the good energy. 🌞"
+          : summary.negative! > (summary.positive || 0)
+          ? "You experienced more low moods recently. Try relaxing or journaling 💙"
+          : "Your moods have been balanced lately — keep taking care of yourself 💫"
+        : "Loading your weekly insights..."}
+    </Text>
+  </View>
+</View>
+
+
+)}
+
+
+
               </View>
             )}
           </ScrollView>
@@ -382,4 +572,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   moodText: { fontSize: 16, fontWeight: "600", color: "#4f8cff" },
+  deleteBtn: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#e63946",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  deleteBtnText: {
+    color: "#fff",
+    fontWeight: "600",
+    marginLeft: 2,
+    fontSize: 14,
+  },
+
 });
