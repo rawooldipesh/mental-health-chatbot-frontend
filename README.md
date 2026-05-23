@@ -1,50 +1,187 @@
-# Welcome to your Expo app 👋
+# FEELFree — Frontend
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> Cross-platform mobile application for the FEELFree AI-powered mental health chatbot. Built with React Native and Expo.
 
-## Get started
+---
 
-1. Install dependencies
+## 🛠️ Tech Stack
 
-   ```bash
-   npm install
-   ```
+| Layer | Technology |
+|---|---|
+| Framework | React Native + Expo (SDK 54) |
+| Navigation | Expo Router v5 + React Navigation |
+| Language | TypeScript |
+| State Management | Zustand |
+| Storage | Expo SecureStore + AsyncStorage |
+| Charts | react-native-chart-kit + react-native-svg |
+| Calendar | react-native-calendars |
+| Animations | react-native-reanimated |
+| Sentiment (client) | sentiment.js |
+| Icons | Expo Vector Icons |
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## 📁 Folder Structure
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+mental-health-chatbot-frontend/
+├── app/                        # Expo Router screens (file-based routing)
+├── assets/                     # Images, fonts, static files
+├── components/                 # Reusable UI components
+├── services/                   # API call functions (axios/fetch wrappers)
+├── store/                      # Zustand global state stores
+├── utils/
+│   ├── config.ts               # App-wide config (API base URL etc.)
+│   ├── sentimentHelper.ts      # Client-side sentiment utilities
+│   └── storage.ts              # AsyncStorage / SecureStore helpers
+├── .expo/
+├── .env                        # Environment variables (never commit)
+├── app.json                    # Expo app config
+├── expo-env.d.ts               # Expo TypeScript env declarations
+├── eslint.config.js
+├── tsconfig.json
+└── package.json
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## 🚀 Getting Started
 
-To learn more about developing your project with Expo, look at the following resources:
+### Prerequisites
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- Node.js v18+
+- Expo CLI: `npm install -g expo-cli`
+- Expo Go app on your phone (Android/iOS) — OR an emulator
 
-## Join the community
+### Installation
 
-Join our community of developers creating universal apps.
+```bash
+# 1. Clone the repository
+git clone https://github.com/your-username/mental-health-chatbot-frontend.git
+cd mental-health-chatbot-frontend
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+# 2. Install dependencies
+npm install
+
+# 3. Create your .env file
+cp .env.example .env
+# Fill in your API base URL (see Environment Variables below)
+
+# 4. Start the development server
+npm start
+```
+
+### Running on a Device / Emulator
+
+```bash
+# Android
+npm run android
+
+# iOS
+npm run ios
+
+# Web
+npm run web
+```
+
+> 📱 For physical device testing — make sure your phone and development machine are on the **same WiFi network**. Update `API_BASE_URL` in `.env` to your machine's local IP (e.g. `http://192.168.1.x:5000`).
+
+---
+
+## 🔐 Environment Variables
+
+Create a `.env` file in the root directory:
+
+```env
+EXPO_PUBLIC_API_BASE_URL=http://localhost:5000
+```
+
+> ⚠️ In Expo, only variables prefixed with `EXPO_PUBLIC_` are exposed to the client. Never store secret keys in the frontend `.env`.
+
+---
+
+## 📱 App Screens
+
+| Screen | Description |
+|---|---|
+| **Login / Register** | Secure auth with JWT; anonymous login option available |
+| **Home Dashboard** | Overview of recent mood and quick access to all features |
+| **Chat** | Real-time AI conversation with empathetic responses |
+| **Mood Calendar** | Log daily mood; entries auto-tagged Positive / Neutral / Negative |
+| **Sentiment Dashboard** | Weekly bar graph and pie chart of emotional trends |
+| **Journal & Goals** | Free-write journal entries and personal goal tracking |
+| **Meditation** | Guided breathing and mindfulness resources |
+| **SOS** | Emergency mental health helpline contacts |
+
+---
+
+## 🗂️ Key Dependencies Explained
+
+| Package | Purpose |
+|---|---|
+| `expo-router` | File-based navigation (like Next.js for React Native) |
+| `zustand` | Lightweight global state management |
+| `expo-secure-store` | Securely stores JWT token on device |
+| `@react-native-async-storage/async-storage` | Persists non-sensitive app data locally |
+| `react-native-calendars` | Mood calendar UI component |
+| `react-native-chart-kit` | Bar graphs and pie charts for sentiment visualization |
+| `react-native-reanimated` | Smooth animations across the app |
+| `sentiment` | Client-side basic sentiment scoring utility |
+| `expo-linear-gradient` | Gradient backgrounds and UI elements |
+| `expo-haptics` | Haptic feedback for better UX |
+
+---
+
+## 🏗️ Architecture Overview
+
+```
+User Action (Screen)
+       ↓
+  Zustand Store (Global State)
+       ↓
+  Services Layer (API calls to backend)
+       ↓
+  FEELFree Backend (Node.js + Express)
+       ↓
+  MongoDB + OpenAI API
+```
+
+- **Screens** handle UI and user interaction
+- **Store** manages global state (auth token, mood data, chat history)
+- **Services** contain all API call logic — keeping screens clean
+- **Utils** handle storage, config, and sentiment helpers
+
+---
+
+## 🔒 Security Notes
+
+- JWT token is stored using **Expo SecureStore** (encrypted, not AsyncStorage)
+- No sensitive keys are stored in the frontend
+- All API calls include the `Authorization: Bearer <token>` header
+- Anonymous login option available for privacy-conscious users
+
+---
+
+## 🧪 Linting
+
+```bash
+npm run lint
+```
+
+Uses `eslint-config-expo` for React Native / Expo best practices.
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit your changes: `git commit -m "Add your feature"`
+4. Push to the branch: `git push origin feature/your-feature`
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is for academic purposes — A.C. Patil College of Engineering, Mumbai University.
